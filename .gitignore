@@ -1,0 +1,38 @@
+# Local environments and Python caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Credentials and machine-local settings
+.env
+.env.*
+!.env.example
+**/gemini_api_key.txt
+**/PI_CONNECT_CREDENTIALS.txt
+**/REALVNC_CREDENTIALS.txt
+local/
+
+# Generated artifacts and internal working records
+tmp/
+dist/
+build/
+archive/
+*.zip
+*.zip.pending
+*.zip.sha256
+*.bin
+*.elf
+*.hex
+*.map
+*.o
+*.d
+
+# Editor and OS state
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
