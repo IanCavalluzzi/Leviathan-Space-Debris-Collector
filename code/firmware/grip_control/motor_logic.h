@@ -2,9 +2,8 @@
 #include <stdint.h>
 
 namespace grip {
-// Conservative 1 ms scheduling quantum; physical waveforms remain unverified.
+// Motor timer tick and command timeouts.
 constexpr uint32_t TICK_US = 1000;
-// Software session defaults, not measured physical stop/holding limits.
 constexpr uint32_t GUARD_TIMEOUT_MS = 1500;
 constexpr uint32_t ARM_TIMEOUT_MS = 10000;
 constexpr uint32_t ticks(uint32_t us) { return (us + TICK_US - 1) / TICK_US; }
@@ -22,7 +21,7 @@ struct Config {
   bool profileVerified;
   int32_t neutral[2], grasp[2];  // neutral is prepared Rest, not physical zero.
   uint32_t jobTimeoutMs;
-  // Explicit user override for unloaded tests, not electrical/mechanism verification.
+  // Permit bounded bench moves before electrical and travel verification.
   bool unloadedTestAuthorized = false;
   int32_t reference[2] = {0, 0};  // Coordinates assigned by REFERENCE_NEUTRAL.
 };
@@ -48,7 +47,7 @@ constexpr bool valid(const Config& c) {
       (!c.profileVerified && !c.unloadedTestAuthorized) ||
       c.jobTimeoutMs == 0 || c.jobTimeoutMs > 60000) return false;
   if (c.unloadedTestAuthorized) {
-    // User-selected unloaded full-stroke test envelope, not calibrated tendon limits.
+    // Restrict the bench override to bounded travel, speed, and duration.
     if (c.jobTimeoutMs > 10000) return false;
     for (uint8_t i = 0; i < 2; ++i)
       if (c.axis[i].minPosition < -2500 || c.axis[i].maxPosition > 2500 || c.axis[i].stepsPerSecond > 500) return false;
@@ -174,7 +173,7 @@ class Controller {
   constexpr Reply command(Command c, int32_t amount = 0, uint32_t nowMs = 0, uint8_t jogAxis = 0, int32_t other = 0) {
     expirePermissions(nowMs);
     const Reply reply = dispatch(c, amount, nowMs, jogAxis, other);
-    // Valid rejected/invalid traffic cannot keep a guarded session alive.
+    // Renew the guard lease only for accepted commands.
     if (reply == Reply::Ok && guardActive) lastContactMs = nowMs;
     return reply;
   }

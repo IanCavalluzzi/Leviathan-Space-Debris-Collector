@@ -15,8 +15,8 @@ The team adapted published spiral-finger geometry and developed the surrounding 
 - [Arduino UNO R4 core](https://github.com/arduino/ArduinoCore-renesas): firmware platform and timing interfaces.
 - [Google Gemini API](https://ai.google.dev/gemini-api/docs): operator-requested snapshot target proposals. This project uses an existing hosted model; it does not train a debris detector.
 
-Third-party libraries are installed through their own distributions and retain their own licenses. Downloaded papers, private source documents, credentials, and generated development archives are not bundled.
+The automatic capture state machine uses an on-delay dwell and one trigger per enable. [Beckhoff TON reference](https://infosys.beckhoff.com/content/1033/tcplclib_tc2_standard/74406539.html) · [Beckhoff rising-edge reference](https://infosys.beckhoff.com/content/1033/tcplclib_tc2_standard/74391563.html)
 
 ## AI assistance disclosure
 
-OpenAI Codex assisted with software implementation, debugging, tests, research synthesis, documentation, and repository preparation. Gemini is also used at runtime for requested-object selection from a camera snapshot. Operator confirmation precedes local tracking; neither AI service directly supplies motor commands. Teammates should disclose any additional tools they used in the event submission.
+OpenAI Codex assisted with implementation, debugging, tests, research, documentation, and repository preparation. Gemini proposes targets from operator-requested camera snapshots. The operator confirms the proposal before local tracking starts.

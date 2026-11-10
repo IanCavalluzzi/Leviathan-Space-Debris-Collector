@@ -7,8 +7,7 @@ $includeDirectory = Join-Path $projectRoot 'code\firmware\grip_control'
 $sketchDirectory = Join-Path $projectRoot 'tmp\grip_logic_tests'
 $buildDirectory = Join-Path $projectRoot 'tmp\grip-logic-tests-build'
 New-Item -ItemType Directory -Path $sketchDirectory -Force | Out-Null
-# Stage exact production headers beside the test sketch, avoiding fragile Windows
-# include-flag quoting. This directory is disposable build input, not another source.
+# Copy production headers beside the sketch for the Arduino compiler.
 foreach ($name in @('motor_logic.h', 'grip_config.h')) {
     $source = Join-Path $includeDirectory $name
     $copy = Join-Path $sketchDirectory $name

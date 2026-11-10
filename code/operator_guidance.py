@@ -1,4 +1,4 @@
-"""Measured camera/gripper alignment and conservatively gated range advice."""
+"""Guide approach using camera calibration and a confirmed range reading."""
 
 from dataclasses import dataclass
 import json
@@ -40,7 +40,7 @@ class Calibration:
 
 
 def load_calibration(path):
-    """Explicit optional JSON; absent measurements stay unset (no center default)."""
+    """Load measured camera and range calibration from JSON."""
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
         return Calibration(**data)
@@ -132,7 +132,7 @@ class Correspondence:
                 or reading is None or reading.status != "OK" or reading.distance_cm is None
                 or not 0 <= now - reading.received_at <= STALE_SECONDS):
             return False
-        # Small, explicit limits from measured calibration, not guessed centimetres.
+        # Expire the confirmation after half the calibrated range window.
         return (all(abs(a - b) <= calibration.tolerance[i % 2]
                     for i, (a, b) in enumerate(zip(current.box, box)))
                 and abs(reading.distance_cm - distance) <=

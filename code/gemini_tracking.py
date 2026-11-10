@@ -1,4 +1,4 @@
-"""Keep a confirmed Gemini box tied to a visible local foreground anchor."""
+"""Track a confirmed Gemini box using its visible foreground anchor."""
 
 from dataclasses import dataclass
 
@@ -11,11 +11,7 @@ class AnchoredRegion(Region):
 
 
 class ConfirmedBoxGuide:
-    """Reuse foreground association; project its motion onto the confirmed box.
-
-    The box is an estimate, not an extracted whole-object silhouette. The mask
-    and contour remain the actual foreground evidence. No components are joined.
-    """
+    """Project the confirmed box from the anchor's position and size."""
 
     def __init__(self, guide, box, anchor):
         self.guide, self.box, self.anchor = guide, box, anchor
@@ -28,8 +24,7 @@ class ConfirmedBoxGuide:
         ax, ay, aw, ah = self.anchor.box
         bx, by, bw, bh = self.box
         sx, sy = w / aw, h / ah
-        # Small reflections and large appearance changes cannot become anchors.
-        # These are demo association settings, not physical capture tolerances.
+        # Reject abrupt changes in anchor scale or aspect ratio.
         if not (0.5 <= sx <= 2 and 0.5 <= sy <= 2 and min(sx, sy) / max(sx, sy) >= 0.7):
             return None
         left, top = round(x + (bx - ax) * sx), round(y + (by - ay) * sy)
@@ -56,8 +51,7 @@ class ConfirmedBoxGuide:
         return mask, [projected for region in regions if (projected := self.project(region)) is not None]
 
     def follow(self, frame, selection, box=None, min_pixels=20):
-        # Association must use the observed anchor's size/position, not the larger
-        # estimated box. This preserves the existing loss/ambiguity/movement gates.
+        # Match the segmented anchor before projecting the estimated box.
         local = Selection()
         local.state, local.reason, local.number = selection.state, selection.reason, selection.number
         local.current = selection.current.anchor if isinstance(selection.current, AnchoredRegion) else None

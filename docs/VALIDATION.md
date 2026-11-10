@@ -1,6 +1,6 @@
 # Validation and limitations
 
-Publication snapshot checked on **8 November 2026**, on Windows with Python 3.13.13. Application modules, operating firmware, test sources, launchers, and requirements were copied from the active development workspace without changing their behavior. Public documentation and repository configuration were prepared separately.
+The first public release was checked on **8 November 2026** on Windows with Python 3.13.13.
 
 ## Local software checks
 
@@ -24,7 +24,7 @@ The [README](../README.md#test) gives the Python test command. For compile-time 
 .\code\tests\firmware\check_grip_logic.ps1 -ArduinoCli (Get-Command arduino-cli).Source
 ```
 
-The optional sensor-host runner uses a Windows Clang that can emit x86-64 Linux objects and an existing WSL distribution with `ld` and libc. Its defaults reflect the development machine; pass your actual paths/distribution:
+The sensor simulation uses Windows Clang to compile x86-64 Linux objects and WSL to link and run them with `ld` and libc. The script finds `clang.exe` on PATH by default. Pass `-Compiler` for a separate installation and `-WslDistribution` if your distribution differs from Ubuntu 22.04.
 
 ```powershell
 .\code\tests\firmware\check_sensor_logic.ps1 -Compiler 'C:\path\to\clang.exe' -WslDistribution 'Ubuntu-22.04'

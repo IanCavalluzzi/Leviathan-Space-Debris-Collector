@@ -1,4 +1,4 @@
-"""Foreground regions and conservative selection for a controlled bench scene."""
+"""Extract foreground regions and track one selected object."""
 
 from dataclasses import dataclass
 from math import hypot
@@ -16,7 +16,7 @@ class Region:
 
 
 def find_regions(frame, threshold=180, min_pixels=80, dark=False, roi=None):
-    """Return the unchanged foreground mask and boxes in full-frame coordinates."""
+    """Threshold a region and return the mask and boxes in camera coordinates."""
     height, width = frame.shape[:2]
     x, y, w, h = roi if roi is not None else (0, 0, width, height)
     if x < 0 or y < 0 or w <= 0 or h <= 0 or x + w > width or y + h > height:
@@ -64,12 +64,12 @@ def overlap(first, second):
 
 
 def movement_limit(box):
-    """Bound a guided frame-to-frame move; not a capture alignment tolerance."""
+    """Maximum frame-to-frame movement in pixels for guided tracking."""
     return max(48.0, 1.5 * hypot(box[2], box[3]))
 
 
 class Selection:
-    """Follow one uniquely associated region; loss always needs a new click."""
+    """Follow a unique region until the operator needs to select again."""
 
     def __init__(self):
         self.number = 0
@@ -107,7 +107,7 @@ class Selection:
         for region in regions:
             ratio = region.pixels / previous.pixels
             distance = hypot(region.center[0] - previous.center[0], region.center[1] - previous.center[1])
-            # Demonstration association gates, not calibrated capture tolerances.
+            # The wider search can follow a box that no longer overlaps.
             limit = movement_limit(previous.box) if moving else max(24.0, 0.6 * hypot(previous.box[2], previous.box[3]))
             shape_ok = not moving or all(0.65 <= region.box[i] / previous.box[i] <= 1.5 for i in (2, 3))
             if (0.6 <= ratio <= 1.6 and distance <= limit and shape_ok

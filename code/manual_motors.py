@@ -1,4 +1,4 @@
-"""Camera-free finite jogs and explicit Rest/Grab through the shared controller."""
+"""Manual jog, Grab, and Rest controls without a camera."""
 
 import argparse
 import re
@@ -12,13 +12,13 @@ from sensor_telemetry import SensorReader
 
 WINDOW = "Debris Capture - Manual Motors"
 SIZE = (900, 770)
-JOG_COUNTS = (1, 5, 10)  # Fine-control presets beside the editable count.
-PULSE_CEILING = 2500  # User-selected per-move cap; cumulative firmware bounds also apply.
+JOG_COUNTS = (1, 5, 10)
+PULSE_CEILING = 2500  # Firmware also enforces cumulative travel limits.
 KEYS = {ord("1"): "A+", ord("2"): "A-", ord("3"): "B+", ord("4"): "B-"}
 
 
 class ManualControl:
-    """Each deliberate move click authorizes one ARM -> finite job; never repeat it."""
+    """Wait for an ARM acknowledgment before sending one movement command."""
 
     def __init__(self, reader):
         self.reader = reader
@@ -235,7 +235,7 @@ class ManualControl:
 
 
 def connection_lines(reader, motor, now):
-    """Show observed connection state, not an unverified competing-app diagnosis."""
+    """Describe the current USB and controller state."""
     if motor.fresh(now):
         return "Controller responding", ""
     state = getattr(reader.snapshot, "state", "starting")
@@ -334,7 +334,7 @@ def run_manual(port="auto"):
     reader = SensorReader(port)
     control = ManualControl(reader)
     try:
-        # A fixed compact bitmap avoids resize/hitbox ambiguity in this commissioning panel.
+        # Keep button hit testing in the panel's fixed coordinate system.
         cv2.namedWindow(WINDOW, cv2.WINDOW_AUTOSIZE)
 
         def mouse(event, x, y, flags, param):

@@ -1,4 +1,4 @@
-"""Operator-guided color foreground extraction using the installed OpenCV."""
+"""Learn foreground colors from an operator's GrabCut outline."""
 
 from math import ceil
 
@@ -112,7 +112,7 @@ class ForegroundGuide:
         else:
             margin = ceil(movement_limit(previous.box) + max(previous.box[2:]) / 2)
             bounds = expand_box(previous.box, frame.shape, margin)
-            # Keep more detail in the occasional larger crop, especially for narrow objects.
+            # Use more pixels in the wider crop to retain narrow objects.
             mask, regions = self._detect_bounds(frame, bounds, min_pixels, limit=640)
             matches = selection.matches(regions, moving=True)
             if matches:
@@ -126,7 +126,7 @@ class ForegroundGuide:
 
 
 def choose_foreground(frame):
-    """Freeze for outlining/correction; the serial worker remains independent."""
+    """Pause the preview for outlining and mask correction."""
     window = "Outline whole target - Enter confirms, C cancels"
     scale = min(1.0, 640 / frame.shape[1], 480 / frame.shape[0])
     image = cv2.resize(frame, (round(frame.shape[1] * scale), round(frame.shape[0] * scale)))

@@ -1,12 +1,4 @@
-"""Explicitly enabled, measured-window, one-shot capture coordination.
-
-No device access or movement retry lives here. The existing MotorLink performs
-GUARD/ARM/GRAB transactions; its write predicate rechecks this cycle immediately
-before each write. Dwell resets like a PLC on-delay timer, and an enable produces
-only one capture, following the simple TON/R_TRIG semantics documented by
-Beckhoff: https://infosys.beckhoff.com/content/1033/tcplclib_tc2_standard/74406539.html
-and https://infosys.beckhoff.com/content/1033/tcplclib_tc2_standard/74391563.html .
-"""
+"""Run one guarded Grab per enable after a stable alignment and range dwell."""
 
 from dataclasses import dataclass, replace
 import json
@@ -27,7 +19,7 @@ FAULT_RESULTS = frozenset(("CONFIG_LOCKED", "AXIS_FAULT", "TIMER_FAULT",
 
 @dataclass(frozen=True)
 class AutoCaptureConfig:
-    """Dwell is supplied explicitly after the real capture window is measured."""
+    """Dwell duration for the measured capture window."""
 
     dwell_seconds: float
 
@@ -39,7 +31,7 @@ class AutoCaptureConfig:
 
 
 def load_auto_capture_config(path):
-    """No default file or operational values; malformed/unset config stays off."""
+    """Read the configured dwell duration from JSON."""
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
         if not isinstance(data, dict) or set(data) != {"dwell_seconds"}:
@@ -65,11 +57,9 @@ class CaptureContext:
 class AutoCapture:
     """One explicit enable -> GUARD -> stable window -> ARM -> one GRAB.
 
-    Pass the token captured when tick returns a command to write_allowed. A
-    canceled cycle cannot authorize its queued command after another enable.
-    cancel returns whether the caller must request one priority STOP. Internal
-    cancellation returns STOP from tick instead. command_result reports queue
-    acceptance, not physical completion. No state claims a confirmed grasp.
+    The cycle token invalidates queued commands after cancellation or re-enable.
+    The caller requests STOP when cancel() returns True. Internal cancellations
+    return STOP from tick(). command_result() records queue acceptance.
     """
 
     def __init__(self, config=None):
@@ -293,10 +283,10 @@ class AutoCapture:
             return None
 
     def write_allowed(self, command, now, token=None, *, motor=_UNSET, reading=_UNSET):
-        """Validate current worker snapshots plus the latest real camera frame.
+        """Recheck the latest frame and USB snapshots before sending a command.
 
-        None is actual missing metadata/range, not permission to reuse cached
-        data. Omitting an override is useful only in pure state-machine tests.
+        An explicit None means the worker has no data. Only an omitted override
+        uses the snapshot already stored in the capture context.
         """
         with self._lock:
             if token is not None and token != self.token:

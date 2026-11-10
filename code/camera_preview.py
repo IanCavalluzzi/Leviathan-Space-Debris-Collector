@@ -1,4 +1,4 @@
-"""Webcam contour boxes, operator selection, and uncalibrated image alignment."""
+"""Camera preview, target selection, and gripper controls."""
 
 import argparse
 import sys
@@ -7,15 +7,15 @@ import time
 import cv2
 import numpy as np
 
+from auto_capture import AutoCapture, CaptureContext, load_auto_capture_config
 from contour_tracking import Selection, find_regions
-from guided_foreground import choose_foreground
 from gemini_selection import GeminiError, GeminiSelector, confirm_target
-from sensor_telemetry import SensorReader, format_snapshot, serial_port_lines
-from motor_control import motor_lines
+from guided_foreground import choose_foreground
 from manual_motors import ManualControl
+from motor_control import motor_lines
 from operator_guidance import Correspondence, guidance, load_calibration
 from preview_layout import DEFAULT_SIZE, PreviewLayout, text_lines
-from auto_capture import AutoCapture, CaptureContext, load_auto_capture_config
+from sensor_telemetry import SensorReader, format_snapshot, serial_port_lines
 
 
 WINDOW = "Debris Capture - Camera Preview"
@@ -159,7 +159,7 @@ def draw_view(frame, mask, regions, selection, roi, count, show_mask, dark, sens
 
 
 def draw_proposal(proposal):
-    """Show the exact cloud input, never an old box drawn on a new live frame."""
+    """Draw the proposal on the saved request frame."""
     view = proposal.frame.copy()
     x, y, w, h = proposal.target.pixel_box(view.shape)
     cv2.rectangle(view, (x, y), (x + w - 1, y + h - 1), (0, 210, 255), 3)
@@ -342,20 +342,14 @@ def run_preview(index, port="auto", width=1280, height=720, backend="auto", targ
                             manual_enabled = True
                             manual_session = status.session_id
                             control_notice = "Manual arm ON. Click Grab or Prepare / Return Rest; enabling sends no motion."
-                    elif action in ("GRAB", "NEUTRAL"):
+                    elif action in ("GRAB", "NEUTRAL", "JOG_A_PLUS", "JOG_A_MINUS", "JOG_B_PLUS", "JOG_B_MINUS"):
                         manual.stroke_edit = None
                         if manual_enabled:
-                            manual.move(action, time.monotonic())
+                            manual.action(action, time.monotonic())
                             control_notice = manual.notice
                         else:
-                            control_notice = "Switch Manual arm ON before a movement."
-                    elif action in ("JOG_A_PLUS", "JOG_A_MINUS", "JOG_B_PLUS", "JOG_B_MINUS"):
-                        manual.stroke_edit = None
-                        if manual_enabled:
-                            manual.jog(action[4], 100 if action.endswith("PLUS") else -100, time.monotonic())
-                            control_notice = manual.notice
-                        else:
-                            control_notice = "Switch Manual arm ON before a live adjustment."
+                            operation = "a live adjustment" if action.startswith("JOG_") else "a movement"
+                            control_notice = f"Switch Manual arm ON before {operation}."
                     elif action == "STOP":
                         manual_enabled = False
                         manual.stop()

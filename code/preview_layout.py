@@ -1,4 +1,5 @@
-"""Display-only geometry. Capture pixels and controller state stay outside this module."""
+"""Preview geometry, button hit testing, and text wrapping."""
+
 from dataclasses import dataclass
 
 import cv2
@@ -115,7 +116,7 @@ class PreviewLayout:
 
 
 def text_lines(text, width, scale, limit=2):
-    """Pixel-width wrapping with a visible ellipsis at a bounded line count."""
+    """Wrap text to a pixel width and add an ellipsis when clipped."""
     text = str(text).encode('ascii', 'replace').decode('ascii')
     words = text.split()
     lines = []

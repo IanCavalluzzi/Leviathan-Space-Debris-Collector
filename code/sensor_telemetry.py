@@ -1,4 +1,4 @@
-"""Single background 115200-baud USB owner for sensor CSV and motor commands."""
+"""Read sensor CSV and send motor commands over a shared USB connection."""
 
 from dataclasses import dataclass
 import math
@@ -121,8 +121,6 @@ class SensorReader:
         return self.motor.snapshot
 
     def command(self, command, condition=None):
-        if condition is None:
-            return self.motor.request(command)
         return self.motor.request(command, condition=condition)
 
     def start(self):
@@ -135,7 +133,7 @@ class SensorReader:
         if s.connected and (s.pending not in (None, "STATUS") or
                             (s.status is not None and (s.status.moving or s.status.armed))):
             self.motor.request("STOP")
-            # Let the sole USB owner send STOP; never claim shutdown proves a halt.
+            # Give the USB worker time to send STOP before closing the port.
             self._stop.wait(0.35)
         self._stop.set()
         if self._thread is not None:
@@ -148,7 +146,7 @@ class SensorReader:
             return self.requested_port
         boards = [
             port for port in list_ports.comports()
-            # Match the selected UNO R4 WiFi, not unrelated generic USB bridges.
+            # Arduino UNO R4 WiFi USB ID.
             if (port.vid, port.pid) == (0x2341, 0x1002)
         ]
         if len(boards) != 1:
@@ -180,7 +178,7 @@ class SensorReader:
                         for reading in decoder.feed(chunk, received_at):
                             if isinstance(reading, SensorReading):
                                 previous = self.snapshot.reading
-                                # Cached samples must not refresh display freshness.
+                                # Duplicate rows retain the original receive time.
                                 if previous is None or reading.uptime_ms != previous.uptime_ms:
                                     self.snapshot = SensorSnapshot("receiving", port, reading)
                             else:

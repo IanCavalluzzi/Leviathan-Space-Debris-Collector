@@ -91,7 +91,7 @@ def parse_target(text):
 
 
 def select_target(frame, prompt, api_key, model):
-    """Send one JPEG over HTTPS. No SDK, retries, tools, or generated commands."""
+    """Request a target proposal for one JPEG snapshot."""
     scale = min(1.0, 1280 / max(frame.shape[:2]))
     image = cv2.resize(frame, (round(frame.shape[1] * scale), round(frame.shape[0] * scale)))
     ok, encoded = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 85])
@@ -169,7 +169,7 @@ class GeminiSelector:
         return self._thread is not None and self._thread.is_alive()
 
     def cancel(self):
-        # In-flight HTTP is bounded by timeout; its result can no longer be used.
+        # Discard any later reply from the canceled request.
         self._generation += 1
 
     def submit(self, frame, prompt):
@@ -210,20 +210,17 @@ class GeminiSelector:
 
 
 def confirm_target(proposal, frame, min_pixels=80):
-    """Use confirmed snapshot colors, then require unique local association now."""
+    """Match the confirmed snapshot's foreground in the live frame."""
     if proposal.expired or proposal.target is None or proposal.error:
         raise GeminiError("Selection expired or unavailable; request a fresh image.")
     if frame.shape != proposal.frame.shape:
         raise GeminiError("Camera size changed; request a fresh image.")
     box = proposal.target.pixel_box(frame.shape)
     guide = ForegroundGuide(proposal.frame, box)
-    # GrabCut's snapshot foreground is restricted to the proposed rectangle.
-    # A unique object need not fill a fixed fraction of Gemini's looser box.
     matches = sorted(regions_from_mask(guide.mask(), min_pixels), key=lambda region: region.pixels, reverse=True)
     if not matches:
         raise GeminiError("No foreground found in the proposed box; use G to outline the target.")
-    # A clear bottle can have a strong label plus isolated reflections. Require
-    # one anchor carrying >=90% of retained foreground, not one connected blob.
+    # A bottle label can anchor the box even when glare creates smaller regions.
     if matches[0].pixels < 0.9 * sum(region.pixels for region in matches):
         raise GeminiError("Multiple foreground parts in the proposed box; use G to refine the target.")
     selection = Selection()

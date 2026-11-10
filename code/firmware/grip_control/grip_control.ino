@@ -1,4 +1,4 @@
-// Coordinated Grab/Neutral with raw sensor telemetry. No automatic capture.
+// Two-axis motor control and sensor telemetry for the UNO R4 WiFi.
 #include <Arduino.h>
 #include <FspTimer.h>
 #include <stdio.h>
@@ -216,8 +216,7 @@ void reportState() {
   const bool guardActive = motor.guardActive;
   interrupts();
   if (revision == reportedRevision) return;
-  // Additive metadata: older hosts ignore it; updated manual controls learn the
-  // installed jog/travel caps instead of assuming a newer sketch was uploaded.
+  // Report the limits enforced by this board.
   const int limitsLength = snprintf(text, sizeof(text), "# motor LIMITS %ld %ld %ld %ld %ld %ld\n",
       static_cast<long>(MOTOR_CONFIG.axis[0].minPosition), static_cast<long>(MOTOR_CONFIG.axis[0].maxPosition),
       static_cast<long>(MOTOR_CONFIG.axis[0].maxJogSteps), static_cast<long>(MOTOR_CONFIG.axis[1].minPosition),
@@ -225,7 +224,7 @@ void reportState() {
   if (limitsLength <= 0 || limitsLength >= static_cast<int>(sizeof(text)) || !sendLine(text)) return;
   char controls[] = "# motor CONTROLS 1\n";  // REFERENCE_REST and signed SET_STROKES supported.
   if (!sendLine(controls)) return;
-  // Distinguish the installed physical-zero/Rest/Grasp contract from old presets.
+  // Report the live profile because SET_STROKES can change it.
   const int profileLength = snprintf(text, sizeof(text), "# motor PROFILE %ld %ld %ld %ld %ld %ld\n",
       static_cast<long>(motor.config.reference[0]), static_cast<long>(motor.config.reference[1]),
       static_cast<long>(motor.config.neutral[0]), static_cast<long>(motor.config.neutral[1]),

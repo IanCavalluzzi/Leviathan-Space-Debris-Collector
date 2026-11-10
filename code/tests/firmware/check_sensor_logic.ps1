@@ -1,22 +1,24 @@
 param(
-    [string]$Compiler = 'C:\ProgramData\miniforge3\envs\ryzen-ai-1.7.0\Lib\site-packages\win64.o\tools\peano\bin\clang.exe',
+    [string]$Compiler = 'clang.exe',
     [string]$WslDistribution = 'Ubuntu-22.04'
 )
 $ErrorActionPreference = 'Stop'
+$clang = Get-Command -Name $Compiler -CommandType Application -ErrorAction SilentlyContinue
+if (-not $clang) {
+    throw "Clang not found: $Compiler. Put clang.exe on PATH or pass -Compiler with its full path."
+}
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
 $fixture = Join-Path $PSScriptRoot 'sensor_host'
 $build = Join-Path $projectRoot 'tmp\sensor-host-tests'
 New-Item -ItemType Directory -Path $build -Force | Out-Null
-if (-not (Test-Path -LiteralPath $Compiler)) { throw "Host compiler unavailable: $Compiler" }
-# The installed Windows Clang can emit Linux objects. Existing WSL supplies ld
-# and libc, so these checks need no compiler, core or dependency installation.
-& $Compiler --target=x86_64-unknown-linux-gnu -std=c++14 -O1 -Wall -Wextra -Werror `
+# Compile Linux objects on Windows, then link and run them under WSL.
+& $clang.Source --target=x86_64-unknown-linux-gnu -std=c++14 -O1 -Wall -Wextra -Werror `
     -fno-exceptions -fno-rtti -fno-stack-protector -nostdinc `
     -isystem (Join-Path $fixture 'host_c') -I $fixture `
     -DARDUINO_UNOR4_WIFI -DNO_USB -c (Join-Path $fixture 'sensor_tests.cpp') `
     -o (Join-Path $build 'sensor_tests.o')
 if ($LASTEXITCODE -ne 0) { throw 'Sensor host compilation failed.' }
-& $Compiler --target=x86_64-unknown-linux-gnu -c (Join-Path $fixture 'linux_entry.S') `
+& $clang.Source --target=x86_64-unknown-linux-gnu -c (Join-Path $fixture 'linux_entry.S') `
     -o (Join-Path $build 'entry.o')
 if ($LASTEXITCODE -ne 0) { throw 'Host entry compilation failed.' }
 function Convert-ToWslPath([string]$path) {
@@ -33,9 +35,7 @@ $testOutput = & wsl -d $WslDistribution -- "$linuxBuild/sensor-tests"
 $testExit = $LASTEXITCODE
 $testOutput | Write-Output
 if ($testExit -ne 0) { throw 'Sensor runtime checks failed.' }
-# Exercise the unmodified Python parser against rows emitted by actual C++
-# production formatting, including bounds/invalid rows and ignored motor lines.
-# This is a test invocation; no Python source or Python test file is changed.
+# Pass firmware-generated CSV rows through the host's serial decoder.
 $rowsPath = Join-Path $build 'csv-fixtures.txt'
 $rows = @($testOutput | Where-Object { $_.StartsWith('CSV_FIXTURE:') } | ForEach-Object { $_.Substring(12) })
 [IO.File]::WriteAllLines($rowsPath, $rows, [Text.Encoding]::ASCII)
@@ -58,8 +58,8 @@ received = []
 for byte in stream.encode("ascii"):
     received.extend(decoder.feed(bytes([byte]), 1.0))
 assert len(received) == 8
-print("Existing Python parse_line/LineDecoder: 8 C++ rows accepted; mixed motor lines ignored.")
+print("Python accepted 8 firmware CSV rows and skipped motor comments.")
 '@
 & $python -c $parserCheck (Join-Path $projectRoot 'code') $rowsPath
-if ($LASTEXITCODE -ne 0) { throw 'Existing telemetry parser compatibility failed.' }
-Write-Output 'Sensor logic, actual-sketch simulation and CSV compatibility passed. No hardware accessed.'
+if ($LASTEXITCODE -ne 0) { throw 'Telemetry parser compatibility check failed.' }
+Write-Output 'Firmware simulation and CSV compatibility checks passed.'

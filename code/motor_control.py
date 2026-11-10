@@ -1,7 +1,4 @@
-"""Exact grip_control comment protocol and a single-session command sequencer.
-
-No device access here. SensorReader alone owns the USB connection.
-"""
+"""Parse grip_control messages and sequence commands for the USB worker."""
 
 from collections import deque
 from dataclasses import dataclass, replace
@@ -81,7 +78,7 @@ class MotorControls:
     editable: bool = True
 
 
-# User-confirmed A outer / B inner; user-selected 900-pulse pulling strokes.
+# Automatic capture requires the default Figure 6B profile.
 PAPER_PROFILE = MotorProfile(0, 0, 900, 0, 0, 900)
 
 
@@ -95,20 +92,25 @@ class MotorSafety:
 
 
 def parse_motor_line(line, received_at):
-    """ACK OK job; ERR reason [job]; or the ten-field state, as emitted."""
+    """Parse a motor reply, state, or metadata line."""
     fields = line.strip().split()
     if fields[:2] != ["#", "motor"]:
         return None
     payload = fields[2:]
     if payload == ["CONTROLS", "1"]:
         return MotorControls()
-    if len(payload) == 7 and payload[0] == "PROFILE":
+    if len(payload) == 7 and payload[0] in ("PROFILE", "LIMITS"):
         if any(not re.fullmatch(r"-?[0-9]{1,10}", value) for value in payload[1:]):
             return None
         values = tuple(map(int, payload[1:]))
-        if any(abs(value) > 1000000 for value in values) or values[2:4] == values[4:6]:
+        if payload[0] == "PROFILE":
+            if any(abs(value) > 1000000 for value in values) or values[2:4] == values[4:6]:
+                return None
+            return MotorProfile(*values)
+        if any(not (-1000000 <= low < high <= 1000000 and 0 < jog <= high - low)
+               for low, high, jog in (values[:3], values[3:])):
             return None
-        return MotorProfile(*values)
+        return MotorLimits(*values)
     if len(payload) == 5 and payload[0] == "SAFETY":
         if (any(value not in ("0", "1") for value in payload[1:3])
                 or any(not re.fullmatch(r"[0-9]{1,5}", value) for value in payload[3:])):
@@ -118,14 +120,6 @@ def parse_motor_line(line, received_at):
             return None
         return MotorSafety(payload[1] == "1", payload[2] == "1",
                            guard_timeout, arm_timeout, received_at)
-    if len(payload) == 7 and payload[0] == "LIMITS":
-        if any(not re.fullmatch(r"-?[0-9]{1,10}", value) for value in payload[1:]):
-            return None
-        values = tuple(map(int, payload[1:]))
-        if any(not (-1000000 <= low < high <= 1000000 and 0 < jog <= high - low)
-               for low, high, jog in (values[:3], values[3:])):
-            return None
-        return MotorLimits(*values)
     if len(payload) in (2, 3) and payload[0] in ("ACK", "ERR"):
         kind, result = payload[:2]
         if kind == "ACK" and (result != "OK" or len(payload) != 3):
@@ -374,18 +368,19 @@ class MotorLink:
 
     def receive(self, event, now):
         with self.lock:
+            # Metadata updates the snapshot without consuming a pending reply.
             if isinstance(event, MotorControls):
                 self._update(controls=event.editable)
                 return
             if isinstance(event, MotorProfile):
                 self._update(profile=event)
-                return  # Installed endpoints never acknowledge, reference or arm.
+                return
             if isinstance(event, MotorSafety):
                 self._update(safety=event)
-                return  # Read-only metadata never acknowledges or authorizes work.
+                return
             if isinstance(event, MotorLimits):
                 self._update(limits=event)
-                return  # Configuration metadata cannot acknowledge a command.
+                return
             if isinstance(event, MotorReply):
                 if event.job_id is None:
                     # Unsolicited startup/framing fault cannot acknowledge a command.

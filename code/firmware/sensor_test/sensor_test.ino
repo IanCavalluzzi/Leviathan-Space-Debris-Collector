@@ -7,8 +7,7 @@
 #error "Select Arduino UNO R4 WiFi as the board."
 #endif
 
-// Latest user wiring: reserve D2=PUL+ and D3=DIR+ for future motor firmware.
-// This sensor-only sketch does not configure or drive those motor pins.
+// Leave D2/D3 untouched because they connect to the motor driver.
 constexpr uint8_t TRIG_PIN = 7;
 constexpr uint8_t ECHO_PIN = 6;
 constexpr uint8_t IR_PINS[] = {9, 10, 11, 12, 13};  // OUT1 through OUT5.
