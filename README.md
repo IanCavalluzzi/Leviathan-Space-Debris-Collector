@@ -1,8 +1,27 @@
 # Leviathan Space Debris Collector
 
-Leviathan is a soft gripper prototype for irregular debris, built for UB Hacking 2026. Two NEMA 23 steppers pull tendons on six 3D-printed TPU spiral fingers. The operator positions the gripper and lifts the object by hand.
+Leviathan is a soft robotic gripper for irregular objects, inspired by the problem of capturing space debris. We built it at UB Hacking 2026 to explore how flexible fingers could wrap around objects with different shapes.
 
-A Windows laptop runs the OpenCV preview and tracks the selected object. The Arduino UNO R4 WiFi reads the ultrasonic sensor and controls the steppers over commands from the laptop's USB serial connection. Grab pays out the outer tendons while pulling the inner tendons. **Prepare / Return Rest** reverses that move.
+[Watch the demo](https://www.youtube.com/watch?v=DN210jYjKYw) · [Devpost project](https://devpost.com/software/the-leviathan) · [STEP assembly](Link%20To%20Step%20File)
+
+![The assembled Leviathan prototype on a workbench, with the two motors and flexible spiral fingers visible](docs/images/leviathan-prototype.jpg)
+
+## How it works
+
+- **Gripper.** Six 3D-printed TPU fingers use logarithmic spiral geometry adapted from SpiRobs. Fishing line acts as the tendon. Two NEMA 23 stepper motors wind the inner and outer tendon groups onto spools.
+- **Vision.** A USB camera feeds the Python/OpenCV app. The operator can outline a target or ask Gemini to propose one from a snapshot. After confirmation, OpenCV tracks it locally.
+- **Control.** The Arduino UNO R4 WiFi reads the ultrasonic sensor and handles step timing. A Grab command pays out the outer tendons while pulling the inner ones. **Prepare / Return Rest** reverses the move.
+
+## Building the prototype
+
+Our work on robotic arms for UB Space Bulls led to a familiar question: how do you grab something when you don't know its shape ahead of time? We modeled the mounts, motor housing, and cable spools in Fusion 360. The first capstan drive let the loaded fishing line cut into the printed drum. We switched to a printed 5:1 planetary gearbox for the hackathon build. [Build notes on Devpost](https://devpost.com/software/the-leviathan#app-details)
+
+<p>
+  <img src="docs/images/leviathan-cad.png" alt="CAD render of the Leviathan end effector" width="310">
+  <img src="docs/images/spiral-mount.jpg" alt="Printed spiral fingers fitted to their mount" width="260">
+</p>
+
+The team reported grasping objects of different shapes during the hackathon. In the bench setup, the operator positions and lifts the gripper by hand. Automatic capture requires verified motor travel and measured camera and range settings. Payload testing and integration with a robot arm are next steps. [Validation notes](docs/VALIDATION.md)
 
 ## Quick start
 
@@ -24,9 +43,7 @@ Press **G** to outline and refine an object, then click it in the live preview. 
 
 For optional Gemini selection, set `GEMINI_API_KEY` or save your key in the ignored file `code/gemini_api_key.txt`. Press **A** and describe the target. The app sends one snapshot and the description to Google. Press **Enter** to confirm the saved-image proposal or **C** to reject it. OpenCV handles tracking after confirmation.
 
-## Hardware and demo status
-
-Use the combined grip controller sketch and follow the setup guide to establish the physical reference before moving the motors. The default strokes are 900 pulses per axis. Automatic capture requires driver and travel verification plus measured camera and range settings. Physical capture, Raspberry Pi hosting, and robot-arm integration are tracked in the validation notes. [Setup and controls](docs/SETUP.md) · [Hardware](docs/HARDWARE.md) · [Validation](docs/VALIDATION.md)
+Use the combined grip controller sketch and establish the physical reference before moving the motors. [Setup and controls](docs/SETUP.md) · [Hardware and pin map](docs/HARDWARE.md)
 
 ## Test
 
@@ -52,6 +69,8 @@ The tests use synthetic images and simulated devices. See the validation notes f
 | [sensor_test](code/firmware/sensor_test/) | Sensor diagnostic sketch |
 | [tests](code/tests/) | Python tests and firmware test runners |
 
-## Design and research
+## Team and credits
 
-The team modeled the assembly in Fusion 360 and adapted the spiral fingers from **SpiRobs** by Zhanchi Wang, Nikolaos M. Freris, and Xi Wei. [Paper](https://arxiv.org/abs/2303.09861) · [STEP file link](Link%20To%20Step%20File) · [Software and AI credits](docs/CREDITS.md)
+[Andrew Chen](https://devpost.com/andrewchen071407), [Ian Cavalluzzi](https://devpost.com/iancavalluzzi), [Davin Lee](https://devpost.com/davinleeeng), and [Max Lasek](https://devpost.com/maxlasekeng) built Leviathan at UB Hacking 2026.
+
+The fingers draw on **SpiRobs** by Zhanchi Wang, Nikolaos M. Freris, and Xi Wei. The photos, CAD render, and demo video come from the team's Devpost submission. [SpiRobs paper](https://arxiv.org/abs/2303.09861) · [Software and AI credits](docs/CREDITS.md)
