@@ -4,7 +4,7 @@ Leviathan is a soft robotic gripper for irregular objects, inspired by the probl
 
 [Watch the demo](https://www.youtube.com/watch?v=DN210jYjKYw) · [Devpost project](https://devpost.com/software/the-leviathan) · [STEP assembly](Link%20To%20Step%20File)
 
-![Leviathan held upright with both motors and the spiral fingers visible](docs/images/leviathan-prototype.jpg)
+![Leviathan on a workbench with its spiral fingers spread out](docs/images/leviathan-prototype.png)
 
 ## How it works
 
